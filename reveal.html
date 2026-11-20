@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Amigo Secreto 🎁</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       font-family:system-ui,sans-serif;background:#fdf2f0;color:#3b2a2a;text-align:center}
+  main{padding:1.5rem;width:100%;max-width:30rem}
+  h1{font-size:1.8rem;margin:0 0 1.5rem}
+  .rotulo{font-size:1.8rem;margin:0}
+  #nome{font-size:3.2rem;font-weight:800;line-height:1.15;margin:1rem 0 1.5rem;
+        color:#c0392b;word-break:break-word}
+  .aviso{font-size:1.4rem;margin:0}
+  .oculto{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Amigo Secreto 🎁</h1>
+  <div id="resultado" class="oculto">
+    <p class="rotulo">Você tirou:</p>
+    <div id="nome"></div>
+    <p class="aviso">Não conte a ninguém! 🤫<br>Você pode abrir este link de novo quando quiser.</p>
+  </div>
+  <p id="erro" class="aviso oculto">Este link está incompleto.<br>Peça para reenviarem a mensagem.</p>
+</main>
+<script>
+const BLOCO = 64;
+function b64uParaBytes(s){
+  s = s.replace(/-/g,'+').replace(/_/g,'/');
+  while (s.length % 4) s += '=';
+  const bin = atob(s), out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function decifrar(token){
+  const raw = b64uParaBytes(token);
+  if (raw.length !== 2*BLOCO) throw new Error('tamanho');
+  const out = new Uint8Array(BLOCO);
+  for (let i = 0; i < BLOCO; i++) out[i] = raw[i] ^ raw[BLOCO+i];
+  let fim = BLOCO;
+  while (fim > 0 && out[fim-1] === 0) fim--;
+  return new TextDecoder('utf-8', {fatal:true}).decode(out.slice(0, fim));
+}
+try {
+  document.getElementById('nome').textContent = decifrar(location.hash.slice(1));
+  document.getElementById('resultado').classList.remove('oculto');
+} catch (e) {
+  document.getElementById('erro').classList.remove('oculto');
+}
+</script>
+</body>
+</html>
