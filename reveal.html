@@ -7,29 +7,52 @@
 <meta name="referrer" content="no-referrer">
 <title>Amigo Secreto 🎁</title>
 <style>
+  *{box-sizing:border-box}
   body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
-       font-family:system-ui,sans-serif;background:#fdf2f0;color:#3b2a2a;text-align:center}
-  main{padding:1.5rem;width:100%;max-width:30rem}
-  h1{font-size:1.8rem;margin:0 0 1.5rem}
-  .rotulo{font-size:1.8rem;margin:0}
-  #nome{font-size:3.2rem;font-weight:800;line-height:1.15;margin:1rem 0 1.5rem;
-        color:#c0392b;word-break:break-word}
-  .aviso{font-size:1.4rem;margin:0}
-  .oculto{display:none}
+       font-family:system-ui,sans-serif;background:#fdf2f0;color:#3b2a2a;text-align:center;overflow-x:hidden}
+  main{padding:1.2rem;width:100%;max-width:32rem;position:relative;z-index:1}
+  h1{font-size:1.6rem;margin:0 0 .8rem}
+  #rotulo{font-size:1.9rem;margin:0 0 1rem;min-height:2.4rem}
+  #foto-wrap{width:min(68vw,15rem);aspect-ratio:1;margin:0 auto;border-radius:50%;
+       border:.45rem solid #e6b8b0;background:#fff;overflow:hidden;position:relative;
+       box-shadow:0 .5rem 1.5rem rgba(120,40,30,.18);transition:border-color .3s,box-shadow .3s}
+  #foto-wrap.final{border-color:#c0392b;
+       box-shadow:0 0 0 .5rem rgba(192,57,43,.18),0 .8rem 2rem rgba(120,40,30,.3)}
+  #foto{width:100%;height:100%;object-fit:cover;display:block}
+  #ini{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+       font-size:5rem;font-weight:800;color:#fff}
+  #nome{font-size:2.6rem;font-weight:800;line-height:1.15;margin:1rem 0 .5rem;
+        color:#8a6a65;word-break:break-word;min-height:3rem}
+  #nome.final{color:#c0392b;font-size:3.2rem}
+  .aviso{font-size:1.3rem;margin:1rem 0 0}
+  .oculto{display:none !important}
+  .tic{animation:tic .13s ease-out}
+  @keyframes tic{from{transform:scale(.94)}to{transform:scale(1)}}
+  .pop{animation:pop .6s cubic-bezier(.2,1.6,.4,1)}
+  @keyframes pop{from{transform:scale(.7)}to{transform:scale(1)}}
+  #confete{position:fixed;inset:0;pointer-events:none;z-index:2}
 </style>
 </head>
 <body>
 <main>
   <h1>Amigo Secreto 🎁</h1>
-  <div id="resultado" class="oculto">
-    <p class="rotulo">Você tirou:</p>
+  <div id="palco" class="oculto">
+    <p id="rotulo">Sorteando… 🥁</p>
+    <div id="foto-wrap"><img id="foto" alt=""><div id="ini" class="oculto"></div></div>
     <div id="nome"></div>
-    <p class="aviso">Não conte a ninguém! 🤫<br>Você pode abrir este link de novo quando quiser.</p>
+    <p id="aviso" class="aviso oculto">Não conte a ninguém! 🤫<br>Você pode abrir este link de novo quando quiser.</p>
   </div>
   <p id="erro" class="aviso oculto">Este link está incompleto.<br>Peça para reenviarem a mensagem.</p>
 </main>
+<canvas id="confete" class="oculto"></canvas>
 <script>
 const BLOCO = 64;
+const el = id => document.getElementById(id);
+const dormir = ms => new Promise(r => setTimeout(r, ms));
+const reduzir = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+let pular = false;
+document.addEventListener('click', () => { pular = true; });
+
 function b64uParaBytes(s){
   s = s.replace(/-/g,'+').replace(/_/g,'/');
   while (s.length % 4) s += '=';
@@ -46,12 +69,104 @@ function decifrar(token){
   while (fim > 0 && out[fim-1] === 0) fim--;
   return new TextDecoder('utf-8', {fatal:true}).decode(out.slice(0, fim));
 }
-try {
-  document.getElementById('nome').textContent = decifrar(location.hash.slice(1));
-  document.getElementById('resultado').classList.remove('oculto');
-} catch (e) {
-  document.getElementById('erro').classList.remove('oculto');
+
+function iniciais(n){
+  const p = n.trim().split(/\s+/);
+  return (p[0][0] + (p.length > 1 ? p[p.length-1][0] : '')).toUpperCase();
 }
+function cor(n){
+  let h = 0;
+  for (const c of n) h = (h*31 + c.charCodeAt(0)) % 360;
+  return 'hsl(' + h + ' 45% 45%)';
+}
+function mostrar(p){
+  el('nome').textContent = p.nome;
+  const img = el('foto'), ini = el('ini');
+  const usarIni = () => {
+    img.classList.add('oculto'); ini.classList.remove('oculto');
+    ini.textContent = iniciais(p.nome); ini.style.background = cor(p.nome);
+  };
+  if (p.foto) {
+    ini.classList.add('oculto'); img.classList.remove('oculto');
+    img.onerror = usarIni; img.src = p.foto;
+  } else usarIni();
+}
+function precarregar(lista){
+  return Promise.all(lista.filter(p => p.foto).map(p => new Promise(r => {
+    const i = new Image(); i.onload = i.onerror = r; i.src = p.foto;
+  })));
+}
+function sequencia(lista, alvo, passos){
+  const seq = []; let ult = null;
+  for (let i = 0; i < passos-1; i++) {
+    let p, t = 0;
+    do { p = lista[Math.floor(Math.random()*lista.length)]; t++; }
+    while ((p === ult || (i === passos-2 && p.nome === alvo.nome)) && t < 50);
+    seq.push(p); ult = p;
+  }
+  seq.push(alvo);
+  return seq;
+}
+function confete(){
+  const c = el('confete'), g = c.getContext('2d');
+  c.classList.remove('oculto');
+  const W = c.width = innerWidth, H = c.height = innerHeight;
+  const cores = ['#c0392b','#f1c40f','#27ae60','#2980b9','#8e44ad','#e67e22'];
+  const ps = Array.from({length:160}, () => ({
+    x: Math.random()*W, y: -20 - Math.random()*H*.5,
+    vx: (Math.random()-.5)*3, vy: 2 + Math.random()*4,
+    r: 6 + Math.random()*8, cor: cores[Math.floor(Math.random()*cores.length)],
+    rot: Math.random()*6, vr: (Math.random()-.5)*.3
+  }));
+  const fim = performance.now() + 3500;
+  (function quadro(t){
+    g.clearRect(0, 0, W, H);
+    for (const p of ps) {
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      g.save(); g.translate(p.x, p.y); g.rotate(p.rot);
+      g.fillStyle = p.cor; g.fillRect(-p.r/2, -p.r/2, p.r, p.r*.6); g.restore();
+    }
+    if (t < fim) requestAnimationFrame(quadro); else c.classList.add('oculto');
+  })(performance.now());
+}
+
+async function principal(){
+  let nomeAlvo;
+  try { nomeAlvo = decifrar(location.hash.slice(1)); }
+  catch (e) { el('erro').classList.remove('oculto'); return; }
+
+  let lista = [];
+  try {
+    const r = await fetch('participantes.json', {cache:'no-cache'});
+    if (r.ok) lista = await r.json();
+  } catch (e) {}
+  lista = lista.filter(p => p && p.nome);
+  const alvo = lista.find(p => p.nome === nomeAlvo) || {nome: nomeAlvo, foto: null};
+
+  el('palco').classList.remove('oculto');
+
+  if (!reduzir && lista.length >= 3) {
+    await Promise.race([precarregar(lista), dormir(4000)]);
+    const passos = 26, seq = sequencia(lista, alvo, passos);
+    const roda = el('foto-wrap');
+    let d = 70;
+    for (let i = 0; i < seq.length-1 && !pular; i++) {
+      mostrar(seq[i]);
+      roda.classList.remove('tic'); void roda.offsetWidth; roda.classList.add('tic');
+      el('foto').style.filter = i < passos/2 ? 'blur(2px)' : 'none';
+      await dormir(d); d *= 1.08;
+    }
+  }
+
+  el('foto').style.filter = 'none';
+  mostrar(alvo);
+  el('rotulo').textContent = 'Você tirou:';
+  el('foto-wrap').classList.add('final', 'pop');
+  el('nome').classList.add('final', 'pop');
+  el('aviso').classList.remove('oculto');
+  if (!reduzir) confete();
+}
+principal();
 </script>
 </body>
 </html>
