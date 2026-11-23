@@ -24,6 +24,9 @@
   #nome{font-size:2.6rem;font-weight:800;line-height:1.15;margin:1rem 0 .5rem;
         color:#8a6a65;word-break:break-word;min-height:3rem}
   #nome.final{color:#c0392b;font-size:3.2rem}
+  #contagem.pequeno{font-size:4.5rem;min-height:5.5rem}
+  #contagem{font-size:min(40vw,10rem);font-weight:800;line-height:1;color:#c0392b;
+       min-height:min(68vw,15rem);display:flex;align-items:center;justify-content:center}
   .aviso{font-size:1.3rem;margin:1rem 0 0}
   .oculto{display:none !important}
   .tic{animation:tic .13s ease-out}
@@ -38,7 +41,8 @@
   <h1>Amigo Secreto 🎁</h1>
   <div id="palco" class="oculto">
     <p id="rotulo">Sorteando… 🥁</p>
-    <div id="foto-wrap"><img id="foto" alt=""><div id="ini" class="oculto"></div></div>
+    <div id="contagem" class="oculto"></div>
+    <div id="foto-wrap" class="oculto"><img id="foto" alt=""><div id="ini" class="oculto"></div></div>
     <div id="nome"></div>
     <p id="aviso" class="aviso oculto">Não conte a ninguém! 🤫<br>Você pode abrir este link de novo quando quiser.</p>
   </div>
@@ -96,17 +100,6 @@ function precarregar(lista){
     const i = new Image(); i.onload = i.onerror = r; i.src = p.foto;
   })));
 }
-function sequencia(lista, alvo, passos){
-  const seq = []; let ult = null;
-  for (let i = 0; i < passos-1; i++) {
-    let p, t = 0;
-    do { p = lista[Math.floor(Math.random()*lista.length)]; t++; }
-    while ((p === ult || (i === passos-2 && p.nome === alvo.nome)) && t < 50);
-    seq.push(p); ult = p;
-  }
-  seq.push(alvo);
-  return seq;
-}
 function confete(){
   const c = el('confete'), g = c.getContext('2d');
   c.classList.remove('oculto');
@@ -145,26 +138,57 @@ async function principal(){
 
   el('palco').classList.remove('oculto');
 
-  if (!reduzir && lista.length >= 3) {
-    await Promise.race([precarregar(lista), dormir(4000)]);
-    const passos = 26, seq = sequencia(lista, alvo, passos);
-    const roda = el('foto-wrap');
-    let d = 70;
-    for (let i = 0; i < seq.length-1 && !pular; i++) {
-      mostrar(seq[i]);
-      roda.classList.remove('tic'); void roda.offsetWidth; roda.classList.add('tic');
-      el('foto').style.filter = i < passos/2 ? 'blur(2px)' : 'none';
-      await dormir(d); d *= 1.08;
+  // O resultado já está fixo no link (cifrado); aqui só evitamos repetir a
+  // contagem quando a pessoa reabre o mesmo link neste aparelho.
+  const chave = 'visto:' + location.hash.slice(1, 25);
+  let jaVisto = false;
+  try { jaVisto = localStorage.getItem(chave) === '1'; } catch (e) {}
+
+  const roleta = !jaVisto && !reduzir && lista.length >= 3;
+  const cont = el('contagem');
+  if (!jaVisto) {
+    if (roleta) await Promise.race([precarregar(lista), dormir(4000)]);
+    cont.classList.remove('oculto');
+    if (roleta) {
+      cont.classList.add('pequeno');
+      el('foto-wrap').classList.remove('oculto');
     }
   }
 
-  el('foto').style.filter = 'none';
+  // Roleta: durante os 5 segundos passa a foto de todos, desacelerando;
+  // o sorteado só aparece depois da contagem.
+  let rodando = roleta;
+  const girar = (async () => {
+    const t0 = performance.now(); let ult = null;
+    while (rodando && !pular) {
+      let p, t = 0;
+      do { p = lista[Math.floor(Math.random()*lista.length)]; t++; }
+      while ((p === ult || p.nome === alvo.nome) && t < 50);
+      ult = p; mostrar(p);
+      const w = el('foto-wrap');
+      w.classList.remove('tic'); void w.offsetWidth; w.classList.add('tic');
+      const f = Math.min((performance.now() - t0) / 5000, 1);
+      await dormir(60 + 200*f*f);
+    }
+  })();
+
+  for (let n = 5; n >= 1 && !pular && !jaVisto; n--) {
+    cont.textContent = n;
+    cont.classList.remove('pop'); void cont.offsetWidth; cont.classList.add('pop');
+    await dormir(1000);
+  }
+  rodando = false; await girar;
+  cont.classList.add('oculto');
+  await Promise.race([precarregar([alvo]), dormir(2000)]);
+  el('foto-wrap').classList.remove('oculto');
+
   mostrar(alvo);
   el('rotulo').textContent = 'Você tirou:';
   el('foto-wrap').classList.add('final', 'pop');
   el('nome').classList.add('final', 'pop');
   el('aviso').classList.remove('oculto');
-  if (!reduzir) confete();
+  if (!reduzir && !jaVisto) confete();
+  try { localStorage.setItem(chave, '1'); } catch (e) {}
 }
 principal();
 </script>
