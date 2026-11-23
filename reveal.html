@@ -104,22 +104,62 @@ function confete(){
   const c = el('confete'), g = c.getContext('2d');
   c.classList.remove('oculto');
   const W = c.width = innerWidth, H = c.height = innerHeight;
-  const cores = ['#c0392b','#f1c40f','#27ae60','#2980b9','#8e44ad','#e67e22'];
-  const ps = Array.from({length:160}, () => ({
-    x: Math.random()*W, y: -20 - Math.random()*H*.5,
-    vx: (Math.random()-.5)*3, vy: 2 + Math.random()*4,
-    r: 6 + Math.random()*8, cor: cores[Math.floor(Math.random()*cores.length)],
-    rot: Math.random()*6, vr: (Math.random()-.5)*.3
-  }));
-  const fim = performance.now() + 3500;
+  const cores = ['#c0392b','#f1c40f','#27ae60','#2980b9','#8e44ad','#e67e22','#e84393','#00cec9'];
+  const emojis = ['🎉','🎁','🎊','⭐','🥳','✨','🎈'];
+  const cor = () => cores[Math.floor(Math.random()*cores.length)];
+  const DUR = 14000, t0 = performance.now();
+  const papeis = [], fogos = [], emo = [];
+  // Canhões de confete nos dois cantos
+  function canhao(x, dir){
+    for (let i = 0; i < 70; i++) {
+      const ang = (-Math.PI/2) + dir*(0.2 + Math.random()*0.7), v = 10 + Math.random()*14;
+      papeis.push({x, y:H, vx:Math.cos(ang)*v, vy:Math.sin(ang)*v, r:6+Math.random()*8,
+        cor:cor(), rot:Math.random()*6, vr:(Math.random()-.5)*.4});
+    }
+  }
+  // Fogos de artifício
+  function fogo(){
+    const x = W*(.15 + Math.random()*.7), y = H*(.12 + Math.random()*.4), k = cor();
+    for (let i = 0; i < 60; i++) {
+      const ang = Math.PI*2*i/60, v = 2 + Math.random()*5;
+      fogos.push({x, y, vx:Math.cos(ang)*v, vy:Math.sin(ang)*v, vida:1, cor:k});
+    }
+  }
+  function chuva(n){
+    for (let i = 0; i < n; i++) papeis.push({x:Math.random()*W, y:-20, vx:(Math.random()-.5)*3,
+      vy:2+Math.random()*4, r:6+Math.random()*8, cor:cor(), rot:Math.random()*6, vr:(Math.random()-.5)*.3});
+  }
+  function chuvaEmoji(n){
+    for (let i = 0; i < n; i++) emo.push({x:Math.random()*W, y:-30, vy:1.5+Math.random()*3,
+      vx:(Math.random()-.5)*1.5, tam:22+Math.random()*22, e:emojis[Math.floor(Math.random()*emojis.length)]});
+  }
+  canhao(0, 1); canhao(W, -1); chuva(120); fogo(); fogo();
+  let ultFogo = t0, ultChuva = t0, ultCanhao = t0;
   (function quadro(t){
+    const dt = t - t0;
+    if (dt < DUR - 3000) {
+      if (t - ultFogo > 600) { fogo(); ultFogo = t; }
+      if (t - ultChuva > 250) { chuva(14); chuvaEmoji(2); ultChuva = t; }
+      if (t - ultCanhao > 3500) { canhao(0, 1); canhao(W, -1); ultCanhao = t; }
+    }
     g.clearRect(0, 0, W, H);
-    for (const p of ps) {
-      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+    for (const p of papeis) {
+      p.vy += .12; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
       g.save(); g.translate(p.x, p.y); g.rotate(p.rot);
       g.fillStyle = p.cor; g.fillRect(-p.r/2, -p.r/2, p.r, p.r*.6); g.restore();
     }
-    if (t < fim) requestAnimationFrame(quadro); else c.classList.add('oculto');
+    for (const f of fogos) {
+      f.vy += .04; f.x += f.vx; f.y += f.vy; f.vida -= .012;
+      if (f.vida > 0) { g.globalAlpha = f.vida; g.fillStyle = f.cor;
+        g.beginPath(); g.arc(f.x, f.y, 2.5, 0, 7); g.fill(); }
+    }
+    g.globalAlpha = 1;
+    for (const m of emo) {
+      m.x += m.vx; m.y += m.vy; g.font = m.tam + 'px serif'; g.fillText(m.e, m.x, m.y);
+    }
+    const some = a => { for (let i = a.length - 1; i >= 0; i--) if ((a[i].y > H + 40) || (a[i].vida !== undefined && a[i].vida <= 0)) a.splice(i, 1); };
+    some(papeis); some(fogos); some(emo);
+    if (dt < DUR) requestAnimationFrame(quadro); else c.classList.add('oculto');
   })(performance.now());
 }
 
@@ -155,7 +195,7 @@ async function principal(){
     }
   }
 
-  // Roleta: durante os 5 segundos passa a foto de todos, desacelerando;
+  // Roleta: durante os 8 segundos passa a foto de todos, desacelerando;
   // o sorteado só aparece depois da contagem.
   let rodando = roleta;
   const girar = (async () => {
@@ -167,12 +207,12 @@ async function principal(){
       ult = p; mostrar(p);
       const w = el('foto-wrap');
       w.classList.remove('tic'); void w.offsetWidth; w.classList.add('tic');
-      const f = Math.min((performance.now() - t0) / 5000, 1);
+      const f = Math.min((performance.now() - t0) / 8000, 1);
       await dormir(60 + 200*f*f);
     }
   })();
 
-  for (let n = 5; n >= 1 && !pular && !jaVisto; n--) {
+  for (let n = 8; n >= 1 && !pular && !jaVisto; n--) {
     cont.textContent = n;
     cont.classList.remove('pop'); void cont.offsetWidth; cont.classList.add('pop');
     await dormir(1000);
