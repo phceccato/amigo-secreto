@@ -11,7 +11,8 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Amigo Secreto">
 <meta property="og:title" content="🎁 Amigo Secreto Família Ceccato">
-<meta property="og:description" content="Chegou a hora! Toque e faça o seu sorteio.">
+<!-- O WhatsApp só mostra a imagem grande se houver descrição: vai um espaço invisível (U+2800). -->
+<meta property="og:description" content="⠀">
 <meta property="og:url" content="https://phceccato.github.io/amigo-secreto/reveal.html">
 <meta property="og:image" content="https://phceccato.github.io/amigo-secreto/capa.jpg">
 <meta property="og:image:secure_url" content="https://phceccato.github.io/amigo-secreto/capa.jpg">
@@ -22,7 +23,10 @@
 <meta name="twitter:card" content="summary_large_image">
 <style>
   *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+  /* Topo fixo (não centraliza na vertical): os nomes da roleta têm 1 ou 2 linhas e, centralizado,
+     o título pulava a cada troca de nome. */
+  body{margin:0;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;
+       padding-top:max(1.5rem, env(safe-area-inset-top, 0px));
        font-family:system-ui,sans-serif;background:#fdf2f0;color:#3b2a2a;text-align:center;overflow-x:hidden}
   main{padding:1.2rem;width:100%;max-width:32rem;position:relative;z-index:1}
   h1{font-size:clamp(2.6rem,12vw,4.2rem);line-height:1.05;font-weight:900;color:#c0392b;margin:0 0 1.2rem}
@@ -36,7 +40,8 @@
   #ini{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
        font-size:5rem;font-weight:800;color:#fff}
   #nome{font-size:2.6rem;font-weight:800;line-height:1.15;margin:1rem 0 .5rem;
-        color:#8a6a65;word-break:break-word;min-height:3rem}
+        color:#8a6a65;word-break:break-word;min-height:calc(2 * 1.15em);
+        display:flex;align-items:center;justify-content:center}
   #nome.final{color:#c0392b;font-size:3.2rem}
   #contagem.pequeno{font-size:4.5rem;min-height:5.5rem}
   #contagem{font-size:min(40vw,10rem);font-weight:800;line-height:1;color:#c0392b;

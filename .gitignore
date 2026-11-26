@@ -4,3 +4,7 @@ sorteio.py
 preparar_fotos.py
 LEIAME.md
 fotos_processadas/
+publicar/
+.~lock.*
+.netlify/
+__pycache__/
